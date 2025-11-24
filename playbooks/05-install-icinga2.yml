@@ -43,7 +43,7 @@
           - "*"
     icinga2_features:
       - name: icingadb
-        host: "{{ db_host }}"
+        host: "127.0.0.1"
       - name: notification
       - name: checker
       - name: mainlog

@@ -61,16 +61,16 @@
   hosts: all-linux
   become: yes
   vars:
-    fqdn: "{{ fqdn | default('icinga.int.fthomys.me') }}"
+    afqdn: "{{ fqdn | default('icinga.int.fthomys.me') }}"
   
   tasks:
     - name: Set the hostname to FQDN
       ansible.builtin.hostname:
-        name: "{{ fqdn }}"
+        name: "{{ afqdn }}"
 
     - name: Ensure /etc/hosts has correct hostname entry
       ansible.builtin.lineinfile:
         path: /etc/hosts
         regexp: "^127\\.0\\.1\\.1"
-        line: "127.0.1.1 {{ fqdn }} {{ fqdn.split('.')[0] }}"
+        line: "127.0.1.1 {{ afqdn }} {{ afqdn.split('.')[0] }}"
         create: yes
