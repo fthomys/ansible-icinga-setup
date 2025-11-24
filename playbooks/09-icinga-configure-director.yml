@@ -1,0 +1,31 @@
+- name: Initial Director Tasks (Services preconfig)
+  hosts: master
+  run_once: true
+  module_defaults:
+    telekom_mms.icinga_director.icinga_deploy:
+      url: "{{ icinga_url }}"
+      url_username: "{{ icinga_user }}"
+      url_password: "{{ icinga_pass }}"
+    telekom_mms.icinga_director.icinga_service_template:
+      url: "{{ icinga_url }}"
+      url_username: "{{ icinga_user }}"
+      url_password: "{{ icinga_pass }}"
+  gather_facts: true
+  handlers:
+    - import_tasks: ../handlers/common.yml
+  tasks:
+    - name: Default Service Template
+      telekom_mms.icinga_director.icinga_service_template:
+        state: present
+        object_name: "Default Service"
+        check_interval: 1m
+        retry_interval: 30s
+      notify: deploy_director
+    - name: Agent Service Template
+      telekom_mms.icinga_director.icinga_service_template:
+        state: present
+        object_name: "Agent Service"
+        use_agent: true
+        imports:
+          - "Default Service"
+      notify: deploy_director

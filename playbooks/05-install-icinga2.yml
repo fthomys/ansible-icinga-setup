@@ -1,0 +1,63 @@
+- name: install icinga
+  hosts: master
+  become: true
+  pre_tasks:
+    - name: Ensure MySQL client is installed
+      package:
+        name:
+          - mariadb-client
+        state: present
+      when: ansible_os_family == "Debian"
+
+    - name: Ensure MariaDB client is installed (RHEL/CentOS)
+      package:
+        name:
+          - mariadb
+        state: present
+      when: ansible_os_family == "RedHat"
+  roles:
+    - netways.icinga.repos
+    - netways.icinga.icinga2
+    - netways.icinga.icingadb
+    - netways.icinga.icingadb_redis
+  vars:
+    icingadb_database_type: mysql
+    icingadb_database_host: "{{ db_host }}"
+    icingadb_database_user: icingadb-user
+    icingadb_database_tls_insecure: true
+    icingadb_database_password: icingadb-password
+    icingadb_database_import_schema: true
+    icinga2_confd: false
+    icinga2_constants:
+      TicketSalt: difhsflioufdicvbnjkiuz6t543edfghjko9876543213wedcdswsdcvbnh
+    icinga2_config_directories:
+      - zones.d/master/hosts
+      - zones.d/master/apiusers
+    icinga2_objects:
+      - name: "DirectorApiUser"
+        type: ApiUser
+        file: "zones.d/master/apiusers/director.conf"
+        order: 1
+        password: director-api-password
+        permissions:
+          - "*"
+    icinga2_features:
+      - name: icingadb
+        host: "{{ db_host }}"
+      - name: notification
+      - name: checker
+      - name: mainlog
+      - name: api
+        ca_host: none
+        endpoints:
+          - name: "{{ icinga_master_fqdn }}"
+        zones:
+          - name: "master"
+            endpoints:
+              - "{{ icinga_master_fqdn }}"
+          - name: "linux-agents"
+            global: true
+          - name: "windows-agents"
+            global: true
+          - name: "director-global"
+            global: true

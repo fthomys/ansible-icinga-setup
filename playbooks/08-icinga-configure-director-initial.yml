@@ -1,0 +1,132 @@
+- name: Initial Director Tasks
+  hosts: all
+  gather_facts: true
+  module_defaults:
+    telekom_mms.icinga_director.icinga_host_template:
+      url: "{{ icinga_url }}"
+      url_username: "{{ icinga_user }}"
+      url_password: "{{ icinga_pass }}"
+    telekom_mms.icinga_director.icinga_host:
+      url: "{{ icinga_url }}"
+      url_username: "{{ icinga_user }}"
+      url_password: "{{ icinga_pass }}"
+    telekom_mms.icinga_director.icinga_hostgroup:
+      url: "{{ icinga_url }}"
+      url_username: "{{ icinga_user }}"
+      url_password: "{{ icinga_pass }}"
+    telekom_mms.icinga_director.icinga_deploy:
+      url: "{{ icinga_url }}"
+      url_username: "{{ icinga_user }}"
+      url_password: "{{ icinga_pass }}"
+  vars:
+    icinga_url: "http://{{ icinga_master_host }}/icingaweb2"
+    icinga_user: "icingaadmin"
+    icinga_pass: "icingaadmin"
+    templates:
+      host_template_base: "Default Host"
+      host_template_agent: "Default Host with Agent"
+      host_template_linux: "Linux Host"
+      host_template_windows: "Windows Host"
+  
+  handlers:
+    - import_tasks: ../handlers/common.yml
+  tasks:
+    - name: ensure host template exist
+      telekom_mms.icinga_director.icinga_host_template:
+        state: present
+        check_command: hostalive
+        check_interval: 60s
+        object_name: Default Host
+        check_timeout: 60
+        enable_perfdata: true
+      notify: deploy_director
+      when: "'master' in group_names"
+    
+    - name: create Linux OS template
+      telekom_mms.icinga_director.icinga_host_template:
+        state: present
+        vars:
+          os: Linux
+        object_name: Linux Host
+        icon_image: tux.png
+        imports:
+          - "Default Host"
+        has_agent: true
+        accept_config: true
+      notify: deploy_director
+      when: "'master' in group_names"
+    
+    - name: create External Host template
+      telekom_mms.icinga_director.icinga_host_template:
+        state: present
+        object_name: External Host
+        vars:
+          location: external
+        master_should_connect: true
+      notify: deploy_director
+      when: "'master' in group_names"
+
+    - name: create Windows OS template
+      telekom_mms.icinga_director.icinga_host_template:
+        state: present
+        icon_image: win.png
+        object_name: Windows Host
+        vars:
+          os: Windows
+        imports:
+          - "Default Host"
+        has_agent: true
+        accept_config: true
+      notify: deploy_director
+      when: "'master' in group_names"
+
+
+    - name: Select appropriate host template
+      set_fact:
+        icinga_import_template: >-
+          {{ templates.host_template_linux if ansible_system == 'Linux'
+             else templates.host_template_windows if ansible_os_family == 'Windows'
+             else templates.host_template_base }}
+
+    - name: Determine package manager for host (by OS family)
+      set_fact:
+        icinga_package_manager: "{{ ansible_pkg_mgr | default('unknown') }}"
+
+
+    - name: Create hosts in Icinga
+      telekom_mms.icinga_director.icinga_host:
+        state: present
+        address: "{{ ansible_host }}"
+        display_name: "{{ inventory_hostname }}"
+        object_name: "{{ fqdn | default(inventory_hostname) }}"
+        imports:
+          - "{{ icinga_import_template }}"
+        vars:
+          ansible_meta:
+            package_manager: "{{ icinga_package_manager }}"
+            distribution: "{{ ansible_distribution }}"
+            distro_version: "{{ ansible_distribution_version }}"
+      #when: "'master' in group_names"
+      notify: deploy_director
+    
+    - name: Ensure Host groups exists (Linux)
+      telekom_mms.icinga_director.icinga_hostgroup:
+        state: present
+        object_name: linux-servers
+        assign_filter: 'host.vars.os="Linux"'
+      when: "'master' in group_names"
+      notify: deploy_director
+
+    - name: Ensure Host groups exists (Windows)
+      telekom_mms.icinga_director.icinga_hostgroup:
+        state: present
+        object_name: windows-servers
+        assign_filter: 'host.vars.os="Windows"'
+      when: "'master' in group_names"
+      notify: deploy_director
+
+
+
+
+
+    

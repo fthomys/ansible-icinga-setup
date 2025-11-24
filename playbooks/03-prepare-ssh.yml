@@ -1,0 +1,47 @@
+- name: Generate SSH key on Icinga master
+  hosts: master
+  become: false
+  vars:
+    ssh_user: "{{ hostvars[groups['master'][0]].ansible_user }}"
+    ssh_home: "/home/{{ ssh_user }}"
+    ssh_dir: "{{ ssh_home }}/.ssh"
+    ssh_key_path: "{{ ssh_dir }}/id_ed25519"
+  tasks:
+    - name: Ensure .ssh directory exists on Icinga master
+      ansible.builtin.file:
+        path: "{{ ssh_dir }}"
+        state: directory
+        owner: "{{ ssh_user }}"
+        group: "{{ ssh_user }}"
+        mode: '0700'
+
+    - name: Ensure SSH key pair exists on Icinga master
+      ansible.builtin.openssh_keypair:
+        path: "{{ ssh_key_path }}"
+        owner: "{{ ssh_user }}"
+        group: "{{ ssh_user }}"
+        type: ed25519
+        comment: "{{ hostvars[groups['master'][0]].ansible_user }}@{{ icinga_master_host }}"
+      register: icinga_ssh_keypair
+
+    - name: Read the public key
+      ansible.builtin.slurp:
+        src: "{{ ssh_key_path }}.pub"
+      register: icinga_pubkey_data
+
+    - name: Store Icinga master public key as a fact
+      ansible.builtin.set_fact:
+        icinga_master_pubkey: "{{ icinga_pubkey_data.content | b64decode }}"
+      run_once: true
+
+
+- name: Install Icinga master public key on all linux agents
+  hosts: linux-agents
+  become: false
+  vars:
+    target_user: "{{ hostvars[groups['master'][0]].ansible_user }}"
+  tasks:
+    - name: Ensure master's public key is in authorized_keys
+      ansible.posix.authorized_key:
+        user: "{{ ansible_user }}"
+        key: "{{ hostvars[groups['master'][0]].icinga_master_pubkey }}"

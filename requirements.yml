@@ -1,0 +1,8 @@
+collections:
+  - geerlingguy.mysql
+  - geerlingguy.apache
+  - netways.icinga
+  - telekom_mms.icinga_director
+  - community.general
+  - ansible.windows 
+  - community.windows

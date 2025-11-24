@@ -1,0 +1,12 @@
+- name: Run tasks without host key checking
+  hosts: localhost
+  gather_facts: false
+  vars:
+    ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+  tasks:
+    - name: Ping targets
+      ansible.builtin.ping:
+      when: groups['all-linux'] | length > 0
+
+
+

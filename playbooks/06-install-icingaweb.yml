@@ -1,0 +1,125 @@
+- name: install and configure icingaweb
+  hosts: master
+  become: true
+  roles:
+    - netways.icinga.icingaweb2
+  vars:
+    icingaweb2_db:
+      type: mysql
+      name: icingaweb
+      host: "{{ db_host }}"
+      user: icingaweb-user
+      password: icingaweb-password    
+    icingaweb2_db_import_schema: true
+    icingaweb2_admin_username: icingaadmin
+    icingaweb2_admin_password: icingaadmin
+    icingaweb2_resources:
+      icingadb:
+        type: db
+        db: mysql
+        host: "{{ db_host }}"
+        dbname: icingadb
+        username: icingadb-user
+        password: icingadb-password
+        use_ssl: 0
+        charset: utf8
+      director:
+        type: db
+        db: mysql
+        host: "{{ db_host }}"
+        dbname: director
+        username: director-user
+        password: director-password
+        use_ssl: 0
+        charset: utf8mb4
+    icingaweb2_modules:
+      icingadb:
+        enabled: true
+        source: package
+        commandtransports:
+          instance01:
+            transport: api
+            host: 127.0.0.1
+            username: DirectorApiUser
+            password: director-api-password
+        config:
+          icingadb:
+            resource: icingadb
+          redis:
+            tls: '0'
+        redis:
+          redis1:
+            host: "127.0.0.1"
+      director:
+        enabled: true
+        source: package
+        import_schema: true
+        run_kickstart: true
+        kickstart:
+          config:
+            endpoint: "{{ ansible_fqdn }}"
+            host: 127.0.0.1
+            username: DirectorApiUser
+            password: director-api-password
+        config:
+          db:
+            resource: director
+  tasks:
+    - name: Enable icinga director service
+      ansible.builtin.systemd:
+        name: icinga-director
+        enabled: yes
+        state: started
+      when: "{{ ansible_facts['os_family'] == 'Debian' }}"
+
+- name: activate apache
+  hosts: icingaweb
+  become: true
+  tasks:
+    - name: Enable Apache2 service
+      ansible.builtin.systemd:
+        name: apache2
+        enabled: yes
+      when: "{{ ansible_facts['os_family'] == 'Debian' }}"
+
+    - name: Start Apache2 service
+      ansible.builtin.systemd:
+        name: apache2
+        state: started
+      when: "{{ ansible_facts['os_family'] == 'Debian' }}"
+
+- name: Deploy the Icinga Director config
+  hosts: icingaweb
+  become: true
+  vars:
+    icinga_user: icingaadmin
+    icinga_pass: icingaadmin
+    icinga_url: http://127.0.0.1/icingaweb2
+
+  tasks:
+    - name: Deploy Icinga config
+      telekom_mms.icinga_director.icinga_deploy:
+        url: "{{ icinga_url }}"
+        url_username: "{{ icinga_user }}"
+        url_password: "{{ icinga_pass }}"
+        timeout: 5
+
+
+- name: Reconfigure Apache
+  become: true
+  hosts: master
+  roles:
+    - geerlingguy.apache
+  vars:
+    apache_listen_ip: '*'
+    apache_listen_port: 80
+    apache_listen_port_ssl: 443
+    apache_mods_enabled:
+      - ssl
+      - rewrite
+    apache_remove_default_vhost: true
+    apache_create_vhosts: true
+    apache_vhosts:
+      - servername: "{{ fqdn }}"
+        extra_parameters: |
+          RedirectMatch ^/$ /icingaweb2

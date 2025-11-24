@@ -1,0 +1,38 @@
+- name: Group hosts dynamically by OS family
+  hosts: all-linux
+  gather_facts: true
+  tasks:
+    - name: Create dynamic group based on OS family
+      ansible.builtin.group_by:
+        key: "os_{{ ansible_facts['os_family'] }}"
+
+
+- name: update system (Debian-Based)
+  hosts: os_Debian
+  become: true
+  tasks:
+    - name: refresh apt cache
+      ansible.builtin.apt:
+        update_cache: true
+      when: ansible_facts['os_family'] == "Debian"
+
+    - name: upgrade packages
+      ansible.builtin.apt:
+        name: "*"
+        state: latest
+      when: ansible_facts['os_family'] == "Debian"
+
+    - name: upgrade os
+      ansible.builtin.apt:
+        upgrade: dist
+      when: ansible_facts['os_family'] == "Debian"
+    
+    - name: Check if a reboot is required
+      ansible.builtin.stat:
+        path: /var/run/reboot-required
+      register: reboot_required_file
+
+    - name: Reboot the machine if required
+      ansible.builtin.reboot:
+        reboot_timeout: 600
+      when: reboot_required_file.stat.exists

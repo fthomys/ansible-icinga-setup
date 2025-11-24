@@ -1,0 +1,22 @@
+- name: Install Icinga agent (Windows)
+  hosts: windows-agents
+  vars:
+    ifw_components:
+      - name: "agent"
+        version: "2.15.1"
+      - name: "plugins"
+      - name: "service"
+    ifw_icinga2_ca_host: "{{ icinga_master_invhost }}"
+
+    ifw_icinga2_global_zones:
+      - "windows-agents"
+
+    ifw_icinga2_parent_zone: master
+    #ifw_framework_path: "fshfewuf"
+
+    ifw_icinga2_parents:
+      - cn: "{{ icinga_master_fqdn }}"
+        host: "{{ icinga_master_fqdn }}"
+        port: 5665
+  roles:
+    - netways.icinga.ifw

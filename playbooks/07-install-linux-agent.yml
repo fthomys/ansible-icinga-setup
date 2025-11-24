@@ -1,0 +1,28 @@
+- name: install icinga agent (linux)
+  hosts: linux-agents
+  become: true
+  vars:
+    icinga2_confd: false
+    icinga2_purge_features: true
+    icinga2_delegate_host: "{{ icinga_master_invhost }}"
+    icinga2_features:
+      - name: api
+        ca_host: "{{ icinga_master_fqdn }}"
+        accept_config: true
+        force_newcert: true
+        accept_commands: true
+        endpoints:
+          - name: "{{ icinga_master_fqdn }}"
+            host: "{{ icinga_master_fqdn }}"
+          - name: NodeName
+        zones:
+          - name: master
+            endpoints:
+              - "{{ icinga_master_fqdn }}"
+          - name: ZoneName
+            endpoints:
+              - NodeName
+            parent: master
+  roles: 
+    - netways.icinga.repos
+    - netways.icinga.icinga2

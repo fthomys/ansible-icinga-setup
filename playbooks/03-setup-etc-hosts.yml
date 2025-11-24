@@ -1,0 +1,76 @@
+---
+- name: Ensure master knows all agents (Linux master)
+  hosts: master
+  gather_facts: false
+  become: true
+  tasks:
+    - name: Ensure all agents are present in master's /etc/hosts
+      ansible.builtin.lineinfile:
+        path: /etc/hosts
+        regexp: "^{{ hostvars[item].ansible_host | regex_escape }}\\b"
+        line: "{{ hostvars[item].ansible_host }} {{ hostvars[item].fqdn }} {{ item }}"
+        state: present
+      # Nur Agents, nicht alle Hosts
+      loop: "{{ (groups['linux-agents'] | default([])) + (groups['windows-agents'] | default([])) }}"
+      when:
+        - hostvars[item].ansible_host is defined
+        - hostvars[item].fqdn is defined
+
+
+- name: Ensure linux agents know master
+  hosts: linux-agents
+  gather_facts: false
+  become: true
+  vars:
+    master_host: "{{ groups['master'][0] }}"
+  tasks:
+    - name: Ensure master is present in /etc/hosts on linux agents
+      ansible.builtin.lineinfile:
+        path: /etc/hosts
+        regexp: "^{{ hostvars[master_host].ansible_host | regex_escape }}\\b"
+        line: "{{ hostvars[master_host].ansible_host }} {{ hostvars[master_host].fqdn }} {{ master_host }}"
+        state: present
+      when:
+        - (ansible_connection | default('ssh')) not in ['winrm', 'psrp']
+        - hostvars[master_host].ansible_host is defined
+        - hostvars[master_host].fqdn is defined
+
+
+- name: Ensure windows agents know master
+  hosts: windows-agents
+  gather_facts: false
+  become: true
+  become_method: runas
+  become_user: Administrator
+  vars:
+    master_host: "{{ groups['master'][0] }}"
+  tasks:
+    - name: Ensure master is present in hosts file on Windows agents
+      community.windows.win_lineinfile:
+        path: C:\Windows\System32\drivers\etc\hosts
+        regexp: "^{{ hostvars[master_host].ansible_host | regex_escape }}\\b"
+        line: "{{ hostvars[master_host].ansible_host }} {{ hostvars[master_host].fqdn }} {{ master_host }}"
+        state: present
+      when:
+        - (ansible_connection | default('ssh')) in ['winrm', 'psrp']
+        - hostvars[master_host].ansible_host is defined
+        - hostvars[master_host].fqdn is defined
+
+
+- name: Set FQDN on Linux servers
+  hosts: all-linux
+  become: yes
+  vars:
+    fqdn: "{{ fqdn | default('icinga.int.fthomys.me') }}"
+  
+  tasks:
+    - name: Set the hostname to FQDN
+      ansible.builtin.hostname:
+        name: "{{ fqdn }}"
+
+    - name: Ensure /etc/hosts has correct hostname entry
+      ansible.builtin.lineinfile:
+        path: /etc/hosts
+        regexp: "^127\\.0\\.1\\.1"
+        line: "127.0.1.1 {{ fqdn }} {{ fqdn.split('.')[0] }}"
+        create: yes

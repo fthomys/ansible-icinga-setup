@@ -1,0 +1,99 @@
+- name: Initial Director Tasks (Services)
+  hosts: master
+  run_once: true
+  gather_facts: true
+  module_defaults:
+    telekom_mms.icinga_director.icinga_service_template:
+      url: "{{ icinga_url }}"
+      url_username: "{{ icinga_user }}"
+      url_password: "{{ icinga_pass }}"
+    telekom_mms.icinga_director.icinga_service_apply:
+      url: "{{ icinga_url }}"
+      url_username: "{{ icinga_user }}"
+      url_password: "{{ icinga_pass }}"
+    telekom_mms.icinga_director.icinga_deploy:
+      url: "{{ icinga_url }}"
+      url_username: "{{ icinga_user }}"
+      url_password: "{{ icinga_pass }}"
+    telekom_mms.icinga_director.icinga_serviceset:
+      url: "{{ icinga_url }}"
+      url_username: "{{ icinga_user }}"
+      url_password: "{{ icinga_pass }}"
+    telekom_mms.icinga_director.icinga_servicegroup:
+      url: "{{ icinga_url }}"
+      url_username: "{{ icinga_user }}"
+      url_password: "{{ icinga_pass }}"
+  handlers:
+    - import_tasks: ../handlers/common.yml
+  tasks:
+    - name: Linux Disk Service Template
+      telekom_mms.icinga_director.icinga_service_template:
+        state: present
+        object_name: "Linux Disk"
+        check_command: disk
+        imports:
+          - "Agent Service"
+      notify: deploy_director
+    - name: Linux Load Service Template
+      telekom_mms.icinga_director.icinga_service_template:
+        state: present
+        object_name: "Linux Load"
+        check_command: load
+        imports:
+          - "Agent Service"
+      notify: deploy_director
+    - name: Ping4 Service Template
+      telekom_mms.icinga_director.icinga_service_template:
+        state: present
+        object_name: "Ping4"
+        check_command: ping4
+        imports:
+          - "Default Service"
+      notify: deploy_director
+
+    - name: Service Apply Ping4
+      telekom_mms.icinga_director.icinga_service_apply:
+        state: present
+        object_name: "Ping"
+        imports:
+          - Ping4
+        assign_filter: 'host.address=true'
+      notify: deploy_director
+    
+    - name: Service Set (Linux)
+      telekom_mms.icinga_director.icinga_serviceset:
+        state: present
+        object_name: Linux
+        description: "Default Linux monitoring"
+        assign_filter: 'host.vars.os="Linux"'
+      notify: deploy_director
+    - name: Service Set (Windows)
+      telekom_mms.icinga_director.icinga_serviceset:
+        state: present
+        object_name: Windows
+        description: "Default Windows monitoring"
+        assign_filter: 'host.vars.os="Windows"'
+      notify: deploy_director
+
+    - name: Service Groups (Linux)
+      telekom_mms.icinga_director.icinga_servicegroup:
+        state: present
+        object_name: linux-services
+        display_name: "Linux Services"
+        assign_filter: 'host.vars.os="Linux"'
+      notify: deploy_director
+
+    
+    - name: Service Groups (Windows)
+      telekom_mms.icinga_director.icinga_servicegroup:
+        state: present
+        object_name: windows-services
+        display_name: "Windows Services"
+        assign_filter: 'host.vars.os="Windows"'
+      notify: deploy_director
+
+    
+        
+        
+
+        

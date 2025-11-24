@@ -1,0 +1,10 @@
+- name: Install monitoring plugins
+  hosts: all-linux
+  become: true
+  tasks:
+    - name: Install monitoring plugins
+      ansible.builtin.apt:
+        pkg:
+          - monitoring-plugins
+          - monitoring-plugins-contrib
+      when: "{{ ansible_facts['os_family'] == 'Debian' }}"
