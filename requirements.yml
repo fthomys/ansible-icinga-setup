@@ -1,8 +1,10 @@
+roles:
+  - name: geerlingguy.mysql
+  - name: geerlingguy.apache
+
 collections:
-  - geerlingguy.mysql
-  - geerlingguy.apache
-  - netways.icinga
-  - telekom_mms.icinga_director
-  - community.general
-  - ansible.windows 
-  - community.windows
+  - name: netways.icinga
+  - name: telekom_mms.icinga_director
+  - name: community.general
+  - name: ansible.windows
+  - name: community.windows
