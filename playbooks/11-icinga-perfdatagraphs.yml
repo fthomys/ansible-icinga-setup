@@ -1,0 +1,92 @@
+- name: Install graphing (pre setup)
+  hosts: master
+  run_once: true
+  gather_facts: true
+  become: true
+
+  vars:
+    netways_keyring: /etc/apt/keyrings/netways.asc
+    netways_repos:
+      - name: netways-extras
+        uri: "https://packages.netways.de/extras/debian/"
+      - name: netways-plugins
+        uri: "https://packages.netways.de/plugins/debian/"
+    netways_key_url: "https://packages.netways.de/netways-repo.asc"
+    packages:
+      - go-carbon
+      - carbonapi
+      - icingaweb2-module-perfdatagraphs-graphite
+      - icingaweb2-module-perfdatagraphs
+    debian_service_names:
+      - go-carbon
+      - carbonapi
+
+  handlers:
+    - name: Restart icinga2
+      listen: restart_icinga
+      ansible.builtin.systemd:
+        state: restarted
+        name: icinga2
+      
+
+  tasks:
+    - name: Set Debian codename
+      ansible.builtin.set_fact:
+        netways_suite: "{{ ansible_distribution_release }}"
+      when: ansible_os_family == "Debian"
+
+    - name: Ensure keyring directory exists
+      ansible.builtin.file:
+        path: /etc/apt/keyrings
+        state: directory
+        mode: '0755'
+      when: ansible_os_family == "Debian"
+
+    - name: Download NETWAYS repo GPG key
+      ansible.builtin.get_url:
+        url: "{{netways_key_url }}"
+        dest: "{{ netways_keyring }}"
+        mode: '0644'
+      when: ansible_os_family == "Debian"
+
+    - name: Configure NETWAYS repositories
+      ansible.builtin.deb822_repository:
+        name: "{{ item.name }}"
+        types: [deb]
+        uris: ["{{ item.uri }}"]
+        suites: ["{{ netways_suite }}"]
+        components: ["main"]
+        signed_by: "{{ netways_keyring }}"
+        state: present
+      loop: "{{ netways_repos }}"
+      when: ansible_os_family == "Debian"
+
+    - name: Update apt cache
+      ansible.builtin.apt:
+        update_cache: yes
+        cache_valid_time: 3600
+      when: ansible_os_family == "Debian"
+
+    - name: Install packages on Debian
+      ansible.builtin.apt:
+        state: present
+        package: "{{ item }}" 
+      when: ansible_os_family == "Debian"
+      loop: "{{ packages }}"
+
+    - name: Install packages on RHEL
+      ansible.builtin.package:
+        state: present
+        name: "{{ item }}"
+      when: ansible_os_family == "RedHat"
+      loop: "{{ packages }}"
+
+    - name: Enable and start services
+      ansible.builtin.service:
+        name: "{{ item }}"
+        enabled: true
+        state: started
+      loop: "{{ debian_service_names }}"
+
+
+
