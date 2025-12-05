@@ -8,3 +8,7 @@ collections:
   - name: community.general
   - name: ansible.windows
   - name: community.windows
+  - name: icinga_contrib
+    type: git
+    source: https://github.com/donien/ansible-collection-icinga_contrib.git
+    version: main

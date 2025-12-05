@@ -88,5 +88,29 @@
         state: started
       loop: "{{ debian_service_names }}"
 
-
-
+- name: Install Graphing Backend and Configure
+  hosts: master
+  run_once: true
+  gather_facts: true
+  become: true
+  vars:
+    icingaweb2_modules:
+      perfdatagraphs:
+        package_name: "icinga-perfdatagraphs"
+        source: git
+        url: "https://github.com/NETWAYS/icingaweb2-module-perfdatagraphs"
+        enabled: true
+        config:
+          perfdatagraphs:
+            default_backend: Graphite
+      perfdatagraphsgraphite:
+        package_name: "icinga-perfdatagraphs-graphite"
+        source: git
+        url: "https://github.com/NETWAYS/icingaweb2-module-perfdatagraphs-graphite"
+        enabled: true
+        config:
+          perfdatagraphsgraphite:
+            api_url: http://localhost:8542
+            api_tls_insecure: true
+  roles:
+    - netways.icinga_contrib.icingaweb2_modules
